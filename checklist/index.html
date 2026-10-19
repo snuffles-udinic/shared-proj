@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Checklist</title>
+<style>
+  :root {
+    --bg: #faf6ef;
+    --card: #ffffff;
+    --text: #2a2723;
+    --muted: #7a736a;
+    --line: #e9e2d6;
+    --accent: #2f9e5b;
+    --accent-ink: #ffffff;
+    --done-bg: #e8f6ec;
+    --done-line: #bfe5cb;
+    --thumb: #efe9df;
+    --danger: #b3412f;
+    --shadow: 0 1px 2px rgba(60, 45, 20, .06), 0 2px 8px rgba(60, 45, 20, .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1916;
+      --card: #25241f;
+      --text: #f1ece3;
+      --muted: #a39b8f;
+      --line: #36342d;
+      --accent: #48bb74;
+      --accent-ink: #0f1a12;
+      --done-bg: #1f3326;
+      --done-line: #2d5238;
+      --thumb: #322f29;
+      --danger: #e2735f;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
+  }
+  h1 { font-size: 26px; line-height: 1.2; margin: 8px 0 6px; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); margin: 0 0 10px; font-size: 15px; }
+  .bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: 18px; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .25s ease; }
+  .done-banner {
+    display: none; text-align: center; font-weight: 700; font-size: 20px;
+    background: var(--done-bg); border: 1px solid var(--done-line); color: var(--accent);
+    border-radius: 16px; padding: 14px; margin-bottom: 14px;
+  }
+  .done-banner.show { display: block; }
+  ul.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 10px 10px 10px 10px; box-shadow: var(--shadow);
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .item.checked { background: var(--done-bg); border-color: var(--done-line); }
+  .thumb {
+    flex: none; width: 52px; height: 72px; border-radius: 6px; overflow: hidden;
+    background: var(--thumb); border: 0; padding: 0; display: grid; place-items: center;
+    color: var(--muted); font-size: 22px; cursor: zoom-in;
+  }
+  .thumb.empty { cursor: pointer; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .text { flex: 1; min-width: 0; }
+  .name { font-weight: 700; overflow-wrap: anywhere; }
+  .item.checked .name { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; }
+  .check {
+    flex: none; width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid var(--line); background: transparent; color: transparent;
+    display: grid; place-items: center; cursor: pointer; padding: 0;
+  }
+  .check svg { width: 24px; height: 24px; }
+  .item.checked .check { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  footer { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px 20px; justify-content: center; }
+  .link-btn {
+    background: none; border: 0; padding: 8px 4px; font: inherit; font-size: 15px;
+    color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  }
+  .broken { text-align: center; padding-top: 60px; }
+  .broken p { color: var(--muted); }
+
+  /* lightbox */
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, .96); z-index: 10;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 16px; gap: 14px; cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 78vh; border-radius: 6px; object-fit: contain; background: #222; }
+  .lightbox .cap { color: #f1ece3; text-align: center; font-weight: 600; max-width: 560px; }
+  .lightbox .cap small { display: block; font-weight: 400; color: #bdb5a9; margin-top: 2px; }
+
+  /* builder */
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+  input[type=text], textarea {
+    width: 100%; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  }
+  textarea { min-height: 200px; resize: vertical; line-height: 1.5; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn {
+    font: inherit; font-weight: 600; font-size: 16px; border-radius: 12px; padding: 12px 16px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .row-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .status { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
+  .bitem { cursor: default; }
+  .bitem .thumb { cursor: default; }
+  .bitem .match { color: var(--muted); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+  .bitem .small-btn {
+    margin-top: 6px; font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 99px;
+    border: 1px solid var(--line); background: transparent; color: var(--accent); cursor: pointer;
+  }
+  .result {
+    margin-top: 18px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px; display: none;
+  }
+  .result.show { display: block; }
+  .result .url {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all;
+    color: var(--muted); max-height: 7.5em; overflow: auto; margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Cover">
+  <img id="lb-img" alt="">
+  <div class="cap" id="lb-cap"></div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  var app = document.getElementById("app");
+  var CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  // ---------- encoding ----------
+  function b64urlEncode(str) {
+    var bytes = new TextEncoder().encode(str);
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlDecode(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    var bin = atob(s);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  }
+  function encodeList(list) { return b64urlEncode(JSON.stringify(list)); }
+  function decodeList(s) {
+    var obj = JSON.parse(b64urlDecode(s));
+    if (!obj || typeof obj !== "object" || !Array.isArray(obj.i)) throw new Error("bad shape");
+    obj.t = typeof obj.t === "string" ? obj.t : "";
+    obj.i = obj.i.filter(function (x) { return x && typeof x.n === "string"; });
+    return obj;
+  }
+
+  function hashKey(str) {
+    // FNV-1a 32-bit, twice with different seeds, for a short stable key
+    function fnv(s, h) {
+      for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+      return h >>> 0;
+    }
+    return "checklist:" + fnv(str, 2166136261).toString(36) + fnv(str, 2166136261 ^ 0x9e3779b9).toString(36);
+  }
+
+  // ---------- storage (best effort) ----------
+  function loadState(key) {
+    try { var v = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function saveState(key, arr) {
+    try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
+
+  // ---------- helpers ----------
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "class") n.className = attrs[k];
+      else if (k === "text") n.textContent = attrs[k];
+      else if (k === "html") n.innerHTML = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  function coverUrl(item, size) {
+    if (item.c) return "https://covers.openlibrary.org/b/id/" + encodeURIComponent(item.c) + "-" + size + ".jpg";
+    if (item.img && /^https?:\/\//i.test(item.img)) return item.img;
+    return "";
+  }
+  function baseUrl() { return location.href.split("#")[0].split("?")[0]; }
+
+  // ---------- lightbox ----------
+  var lb = document.getElementById("lightbox");
+  var lbImg = document.getElementById("lb-img");
+  var lbCap = document.getElementById("lb-cap");
+  function openLightbox(item) {
+    lbImg.src = coverUrl(item, "L");
+    lbImg.alt = item.n;
+    lbCap.textContent = item.n;
+    if (item.s) lbCap.appendChild(el("small", { text: item.s }));
+    lb.classList.add("open");
+  }
+  lb.addEventListener("click", function () { lb.classList.remove("open"); lbImg.removeAttribute("src"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") lb.click(); });
+
+  function thumbFor(item, onTapEmpty) {
+    var url = coverUrl(item, "M");
+    if (!url) return el("button", { class: "thumb empty", type: "button", "aria-hidden": "true", tabindex: "-1", text: "📖", onclick: onTapEmpty });
+    var img = el("img", { src: url, alt: "", loading: "lazy" });
+    var b = el("button", { class: "thumb", type: "button", "aria-label": "Show cover of " + item.n }, [img]);
+    img.addEventListener("error", function () { b.textContent = "📖"; b.classList.add("empty"); });
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (b.classList.contains("empty")) { if (onTapEmpty) onTapEmpty(e); return; }
+      openLightbox(item);
+    });
+    return b;
+  }
+
+  // ---------- checklist mode ----------
+  function renderChecklist(raw) {
+    var list;
+    try { list = decodeList(raw); } catch (e) {
+      document.title = "Broken link";
+      app.appendChild(el("div", { class: "broken" }, [
+        el("h1", { text: "This link looks broken" }),
+        el("p", { text: "Ask for the link again, or make a new list." }),
+        el("button", { class: "btn primary", type: "button", text: "Make a new list", onclick: function () { location.href = baseUrl(); } })
+      ]));
+      return;
+    }
+    document.title = list.t || "Checklist";
+    var key = hashKey(raw);
+    var checked = loadState(key).filter(function (x) { return typeof x === "number" && x >= 0 && x < list.i.length; });
+    var set = {}; checked.forEach(function (x) { set[x] = true; });
+
+    var count = el("p", { class: "sub" });
+    var fill = el("div");
+    var banner = el("div", { class: "done-banner", text: "All done! 🎉" });
+    var ul = el("ul", { class: "items" });
+    var rows = [];
+
+    function update() {
+      var n = 0;
+      rows.forEach(function (r, i) {
+        var on = !!set[i];
+        if (on) n++;
+        r.classList.toggle("checked", on);
+        r.querySelector(".check").setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      var total = list.i.length;
+      count.textContent = n + " of " + total + " done";
+      fill.style.width = total ? (100 * n / total) + "%" : "0";
+      banner.classList.toggle("show", total > 0 && n === total);
+    }
+    function toggle(i) {
+      if (set[i]) delete set[i]; else set[i] = true;
+      saveState(key, Object.keys(set).map(Number).sort(function (a, b) { return a - b; }));
+      update();
+    }
+
+    list.i.forEach(function (item, i) {
+      var li = el("li", { class: "item", onclick: function () { toggle(i); } }, [
+        thumbFor(item, function (e) { e.stopPropagation(); toggle(i); }),
+        el("div", { class: "text" }, [
+          el("div", { class: "name", dir: "auto", text: item.n }),
+          item.s ? el("div", { class: "note", dir: "auto", text: item.s }) : null
+        ]),
+        el("button", { class: "check", type: "button", "aria-label": "Done: " + item.n, html: CHECK_SVG,
+          onclick: function (e) { e.stopPropagation(); toggle(i); } })
+      ]);
+      rows.push(li);
+      ul.appendChild(li);
+    });
+
+    app.appendChild(el("h1", { text: list.t || "Checklist" }));
+    app.appendChild(count);
+    app.appendChild(el("div", { class: "bar", role: "presentation" }, [fill]));
+    app.appendChild(banner);
+    app.appendChild(ul);
+    app.appendChild(el("footer", null, [
+      el("button", { class: "link-btn", type: "button", text: "Uncheck all", onclick: function () {
+        if (!Object.keys(set).length) return;
+        if (confirm("Uncheck everything on this list?")) { set = {}; saveState(key, []); update(); }
+      } }),
+      el("button", { class: "link-btn", type: "button", text: "Make a copy / edit", onclick: function () {
+        location.href = baseUrl() + "?edit=" + raw;
+      } })
+    ]));
+    update();
+  }
+
+  // ---------- builder mode ----------
+  function parseLine(line) {
+    var parts = line.split("|").map(function (p) { return p.trim(); });
+    var item = { n: parts.shift() };
+    var notes = [];
+    parts.forEach(function (p) {
+      if (!p) return;
+      if (/^https?:\/\/\S+$/i.test(p)) item.img = p; else notes.push(p);
+    });
+    if (notes.length) item.s = notes.join(" · ");
+    return item;
+  }
+  function itemToLine(it) {
+    var s = it.n;
+    if (it.s) s += " | " + it.s;
+    if (it.img) s += " | " + it.img;
+    return s;
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function renderBuilder() {
+    document.title = "Make a checklist";
+    var prefill = null;
+    var m = /[?&]edit=([^&#]+)/.exec(location.search);
+    if (m) { try { prefill = decodeList(m[1]); } catch (e) { prefill = null; } }
+
+    // cache of lookups, keyed by the item name; prefilled covers count as a match
+    var lookups = {};
+    if (prefill) prefill.i.forEach(function (it) {
+      if (it.c) lookups[it.n] = { matches: [{ cover_i: it.c, title: "current cover", author: "" }], k: 0 };
+    });
+
+    var title = el("input", { type: "text", id: "title", placeholder: "Library books to return", autocomplete: "off" });
+    var ta = el("textarea", { id: "lines", placeholder: "Dog Man | due Friday\nCharlotte's Web\nMilk | https://example.com/milk.jpg", spellcheck: "false" });
+    if (prefill) { title.value = prefill.t; ta.value = prefill.i.map(itemToLine).join("\n"); }
+
+    var preview = el("ul", { class: "items", style: "margin-top:16px" });
+    var status = el("div", { class: "status", role: "status" });
+    var findBtn = el("button", { class: "btn", type: "button", text: "Find book covers" });
+    var createBtn = el("button", { class: "btn primary", type: "button", text: "Create link" });
+    var urlBox = el("div", { class: "url" });
+    var copyBtn = el("button", { class: "btn", type: "button", text: "Copy link" });
+    var shareBtn = el("button", { class: "btn", type: "button", text: "Share" });
+    var openBtn = el("button", { class: "btn primary", type: "button", text: "Open" });
+    var result = el("div", { class: "result" }, [urlBox, el("div", { class: "row-btns" }, [copyBtn, navigator.share ? shareBtn : null, openBtn])]);
+    var currentUrl = "";
+
+    function currentItems() {
+      return ta.value.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean).map(parseLine);
+    }
+    function withCovers(items) {
+      return items.map(function (it) {
+        var out = { n: it.n };
+        if (it.s) out.s = it.s;
+        if (it.img) out.img = it.img;
+        else {
+          var L = lookups[it.n];
+          if (L && L.k < L.matches.length) out.c = L.matches[L.k].cover_i;
+        }
+        return out;
+      });
+    }
+    function renderPreview() {
+      preview.innerHTML = "";
+      var items = currentItems();
+      var full = withCovers(items);
+      full.forEach(function (it, idx) {
+        var L = lookups[it.n];
+        var info = null, cycle = null;
+        if (items[idx].img) info = el("div", { class: "match", text: "Using your picture" });
+        else if (L) {
+          var mm = L.matches.length;
+          if (!mm) info = el("div", { class: "match", text: "No cover found" });
+          else {
+            info = el("div", { class: "match", text: L.k < mm
+              ? "Match " + (L.k + 1) + " of " + mm + ": " + L.matches[L.k].title + (L.matches[L.k].author ? " · " + L.matches[L.k].author : "")
+              : "No picture" });
+            cycle = el("button", { class: "small-btn", type: "button", text: "Try another cover", onclick: function () {
+              L.k = (L.k + 1) % (mm + 1);
+              renderPreview();
+            } });
+          }
+        }
+        preview.appendChild(el("li", { class: "item bitem" }, [
+          thumbFor(it),
+          el("div", { class: "text" }, [
+            el("div", { class: "name", text: it.n }),
+            it.s ? el("div", { class: "note", text: it.s }) : null,
+            info, cycle
+          ])
+        ]));
+      });
+    }
+
+    async function lookup(name) {
+      var u = "https://openlibrary.org/search.json?q=" + encodeURIComponent(name) + "&fields=title,author_name,cover_i&limit=10";
+      var r = await fetch(u);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var j = await r.json();
+      return (j.docs || []).filter(function (d) { return d.cover_i; }).map(function (d) {
+        return { cover_i: d.cover_i, title: d.title || "", author: (d.author_name || [])[0] || "" };
+      });
+    }
+
+    findBtn.addEventListener("click", async function () {
+      var items = currentItems().filter(function (it) { return !it.img; });
+      if (!items.length) { status.textContent = "Add some lines first."; return; }
+      findBtn.disabled = true;
+      var failed = 0;
+      for (var i = 0; i < items.length; i++) {
+        var name = items[i].n;
+        status.textContent = "Looking up " + (i + 1) + " of " + items.length + "…";
+        try {
+          var matches = await lookup(name);
+          var prev = lookups[name];
+          // keep a prefilled/previous pick at the front so it stays selected
+          if (prev && prev.matches.length && prev.k < prev.matches.length) {
+            var keep = prev.matches[prev.k];
+            matches = [keep].concat(matches.filter(function (x) { return x.cover_i !== keep.cover_i; }));
+          }
+          lookups[name] = { matches: matches, k: 0 };
+        } catch (e) { failed++; }
+        renderPreview();
+        if (i < items.length - 1) await sleep(300);
+      }
+      status.textContent = failed ? "Done, but " + failed + " lookup(s) failed. Try again later." : "Done. Tap “Try another cover” if one looks wrong.";
+      findBtn.disabled = false;
+    });
+
+    createBtn.addEventListener("click", function () {
+      var items = withCovers(currentItems());
+      if (!items.length) { status.textContent = "Add at least one line."; return; }
+      var list = { t: title.value.trim() || "Checklist", i: items };
+      currentUrl = baseUrl() + "#" + encodeList(list);
+      urlBox.textContent = currentUrl;
+      result.classList.add("show");
+      status.textContent = "";
+      result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    copyBtn.addEventListener("click", async function () {
+      try { await navigator.clipboard.writeText(currentUrl); copyBtn.textContent = "Copied!"; }
+      catch (e) {
+        var r = document.createRange(); r.selectNodeContents(urlBox);
+        var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        copyBtn.textContent = "Selected — copy it";
+      }
+      setTimeout(function () { copyBtn.textContent = "Copy link"; }, 2000);
+    });
+    shareBtn.addEventListener("click", function () {
+      navigator.share({ title: title.value.trim() || "Checklist", url: currentUrl }).catch(function () {});
+    });
+    openBtn.addEventListener("click", function () { location.href = currentUrl; });
+
+    var t;
+    ta.addEventListener("input", function () { clearTimeout(t); t = setTimeout(renderPreview, 250); result.classList.remove("show"); });
+    title.addEventListener("input", function () { result.classList.remove("show"); });
+
+    app.appendChild(el("h1", { text: prefill ? "Edit a copy" : "Make a checklist" }));
+    app.appendChild(el("p", { class: "sub", text: "Make a list, get a link. Checks are saved on the phone that opens it." }));
+    app.appendChild(el("label", { for: "title", text: "List name" }));
+    app.appendChild(title);
+    app.appendChild(el("label", { for: "lines", text: "Items, one per line" }));
+    app.appendChild(ta);
+    app.appendChild(el("p", { class: "hint", text: "Add extras after a “|”: a note, or an http(s) picture link." }));
+    app.appendChild(el("div", { class: "row-btns" }, [findBtn, createBtn]));
+    app.appendChild(status);
+    app.appendChild(result);
+    app.appendChild(preview);
+    renderPreview();
+  }
+
+  var h = location.hash.replace(/^#/, "");
+  if (h) renderChecklist(h); else renderBuilder();
+  window.addEventListener("hashchange", function () { location.reload(); });
+})();
+</script>
+</body>
+</html>
